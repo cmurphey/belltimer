@@ -17,24 +17,24 @@ const int btnLEFT = 3;
 const int btnSELECT = 4;
 const int btnNONE = 5;
 
-// Adjust to set amount of time the relay should be on (in milliseconds)
-const int bellRelayOnTimeSec = 1000;
+// Relay constants
+const int relayPin = 2;
 
-// Adjust to set the amount of time between rings (in milliseconds)
-const int bellDelayBetweenRingsMs = 1000;
+// Adjust to set amount of time the relay should be on for each ring (in milliseconds)
+const int bellRelayOnTimeSec = 1825;
 
 // Adjust to set hours that will ring
 const int numDailyRingHours = 2;
 const int bellDailyRingHours[numDailyRingHours] = {12, 18};
 
-// Adjust to set days that should ring - Monday = 0, Sunday = 6
+// Adjust to set days that should ring - Sunday = 1, Saturday = 7
 const int numDailyRingDays = 7;
-const int bellDailyRingDays[numDailyRingDays] = {0, 1, 2, 3, 4, 5, 6};
+const int bellDailyRingDays[numDailyRingDays] = {1, 2, 3, 4, 5, 6, 7};
 
 // Adjust to set Sunday ring time and count
 const int bellSundayRingHour = 9;
 const int bellSundayRingMinute = 30;
-const int bellSundayRingCount = 10;
+const int bellSundayRingCount = 3;
 
 // Date/Time variables
 int hour;
@@ -49,33 +49,35 @@ bool century = false;
 bool h12Flag;
 bool pmFlag;
 
-// Temporary internal clock
-DateTime tempClock = DateTime(2021, 8, 12, 11, 59, 55);
-long timeSec = tempClock.unixtime();
-long lastMillis;
-
 // Ring variables
-int lastRingHour = tempClock.hour();
+int lastRingHour = 0;
 int lastSundayDay = 0;
 
 void setup() {
   // Begin sending data to the serial port
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   // Initialize the LCD
   lcd.begin(16, 2);
   lcd.setCursor(0, 0);
 
+  // Initialize Relay
+  pinMode(relayPin, OUTPUT);
+
   // Start the I2C interface
   Wire.begin();
 
-  displayDateTime();
+  // Run if RTC gets zeroed out somehow - this needs to be left commented out otherwise
+//  clock.setClockMode(false);  // set to 24h
+//  clock.setYear(21); // 2 digit
+//  clock.setMonth(8);
+//  clock.setDate(13);
+//  clock.setDoW(6); // 1 = Sun, 7 = Sat
+//  clock.setHour(22); // 24h
+//  clock.setMinute(15);
 }
 
 void loop() {
-  // Temporary clock code
-  updateTempClock();
-  
   // Read the lcd buttons
   int lcdKey = readLCDButtons();
 
@@ -91,17 +93,9 @@ void loop() {
   checkRingTimer();
 }
 
-void updateTempClock() {
-  long newMillis = millis();
-  int secondsChange = (newMillis - lastMillis) / 1000;
-  if (secondsChange > 0) {
-    timeSec += secondsChange;
-    lastMillis = newMillis;
-  }
-}
-
 void ringBell(int count) {
   lcd.clear();
+  // Bell needs to be left on for it to ring multiple times
   for (int i = 1; i <= count; i++) {
     lcd.setCursor(0, 0);
     lcd.print("Ring ");
@@ -110,28 +104,30 @@ void ringBell(int count) {
     lcd.print(count);
 
     // Relay on
+    digitalWrite(relayPin, HIGH);
     delay(bellRelayOnTimeSec);
-    // Relay off
-    delay(bellDelayBetweenRingsMs);
   }
+  // Relay off
+  digitalWrite(relayPin, LOW);
+  lcd.clear();
 }
 
 void checkRingTimer() {
-
-  int currentHour = tempClock.hour();
-  int currentDay = tempClock.day();
-  
-  if (isRingDay() && isRingHour() && lastRingHour != currentHour) {
+  int currentHour = clock.getHour(h12Flag, pmFlag);
+  int currentMinute = clock.getMinute();
+  int currentSecond = clock.getSecond();
+  if (isRingDay() 
+      && isRingHour() 
+      && currentMinute == 0 
+      && currentSecond == 0) {
     int count = currentHour;
     if (count > 12) {
       count -= 12;
     }
     ringBell(count);
-    lastRingHour = currentHour;
   }
-  if (isChurchTime() && lastSundayDay != currentDay) {
+  if (isChurchTime()) {
      ringBell(bellSundayRingCount);
-     lastSundayDay = currentDay;
   }
 }
 
@@ -147,7 +143,7 @@ boolean isRingDay() {
 
 boolean isRingHour() {
   // Check if this is a ring hour
-  int currentHour = tempClock.hour();
+  int currentHour = clock.getHour(h12Flag, pmFlag);
   for (int i = 0; i < numDailyRingHours; i++) {
     if (bellDailyRingHours[i] == currentHour) {
       return true;
@@ -158,9 +154,13 @@ boolean isRingHour() {
 
 boolean isChurchTime() {
   // Check if it's church time
-  int currentHour = tempClock.hour();
-  int currentMinute = tempClock.minute();
-  if (dow == 6 && currentHour == bellSundayRingHour && currentMinute == bellSundayRingMinute) {
+  int currentHour = clock.getHour(h12Flag, pmFlag);
+  int currentMinute = clock.getMinute();
+  int currentSecond = clock.getSecond();
+  if (dow == 1 
+      && currentHour == bellSundayRingHour 
+      && currentMinute == bellSundayRingMinute 
+      && currentSecond == 0) {
     return true;
   }
   return false;
@@ -214,22 +214,13 @@ void displayMenu(int lcdKey) {
 
 void displayDateTime() {
   // Show the current date and time
-//  year = clock.getYear();
-//  month = clock.getMonth(century);
-//  day = clock.getDate();
-//  dow = clock.getDoW();
-//  hour = clock.getHour(h12Flag, pmFlag); //24-hr
-//  minute = clock.getMinute();
-//  second = clock.getSecond();
-
-  // Temporary clock based on millis + start time (fixed)
-  tempClock = DateTime(timeSec);
-  year = tempClock.year();
-  month = tempClock.month();
-  day = tempClock.day();
-  hour = tempClock.hour();
-  minute = tempClock.minute();
-  second = tempClock.second();
+  year = clock.getYear();
+  month = clock.getMonth(century);
+  day = clock.getDate();
+  dow = clock.getDoW();
+  hour = clock.getHour(h12Flag, pmFlag); //24-hr
+  minute = clock.getMinute();
+  second = clock.getSecond();
 
   lcd.setCursor(0, 0);
   lcd.print(month, DEC);
@@ -259,26 +250,26 @@ void displayDateTime() {
 
 void displayDayOfWeek() {
   switch(dow) {
-    case 0:
-      lcd.print("Mon");
-      break;
     case 1:
-      lcd.print("Tue");
+      lcd.print("Sun");
       break;
     case 2:
-      lcd.print("Wed");
+      lcd.print("Mon");
       break;
     case 3:
-      lcd.print("Thu");
+      lcd.print("Tue");
       break;
     case 4:
-      lcd.print("Fri");
+      lcd.print("Wed");
       break;
     case 5:
-      lcd.print("Sat");
+      lcd.print("Thu");
       break;
     case 6:
-      lcd.print("Sun");
+      lcd.print("Fri");
+      break;
+    case 7:
+      lcd.print("Sat");
       break;
     default:
       break;
@@ -403,15 +394,15 @@ void displaySetDoW(int lcdKey) {
   // Setting the day of the week
   lcd.clear();
   if (lcdKey == btnUP) {
-    if (dow == 6) {
-      dow = 0;
+    if (dow == 7) {
+      dow = 1;
     } else {
       dow = dow + 1;
     }
   }
   if (lcdKey == btnDOWN) {
-    if (dow == 0) {
-      dow = 6;
+    if (dow == 1) {
+      dow = 7;
     } else {
       dow = dow - 1;
     }
@@ -424,22 +415,18 @@ void displaySetDoW(int lcdKey) {
 }
 
 void storeTime() {
-  // Variable saving
   lcd.clear();
+
+  clock.setClockMode(false);  // set to 24h
+  clock.setYear(year);
+  clock.setMonth(month);
+  clock.setDate(day);
+  clock.setDoW(dow);
+  clock.setHour(hour);
+  clock.setMinute(minute);
+
   lcd.setCursor(0, 0);
   lcd.print("Saved");
-
-//  clock.setClockMode(false);  // set to 24h
-//  clock.setYear(year);
-//  clock.setMonth(month);
-//  clock.setDate(day);
-//  clock.setDoW(dow);
-//  clock.setHour(hour);
-//  clock.setMinute(minute);
-
-  // Temporary store to local variable
-  DateTime newDateTime = DateTime(year, month, day, hour, minute, 0);
-  timeSec = newDateTime.unixtime();
   
   delay(500);
 }
