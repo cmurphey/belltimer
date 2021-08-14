@@ -21,7 +21,7 @@ const int btnNONE = 5;
 const int relayPin = 2;
 
 // Adjust to set amount of time the relay should be on for each ring (in milliseconds)
-const int bellRelayOnTimeSec = 1825;
+const int bellRelayOnTimeMs = 1825;
 
 // Adjust to set hours that will ring
 const int numDailyRingHours = 2;
@@ -105,7 +105,7 @@ void ringBell(int count) {
 
     // Relay on
     digitalWrite(relayPin, HIGH);
-    delay(bellRelayOnTimeSec);
+    delay(bellRelayOnTimeMs);
   }
   // Relay off
   digitalWrite(relayPin, LOW);
