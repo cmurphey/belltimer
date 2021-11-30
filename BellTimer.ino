@@ -113,9 +113,12 @@ void ringBell(int count) {
 }
 
 void checkRingTimer() {
-  int currentHour = clock.getHour(h12Flag, pmFlag);
-  int currentMinute = clock.getMinute();
+
+  // Retrieve seconds before minutes so that we don't have a stale minute value
   int currentSecond = clock.getSecond();
+  int currentMinute = clock.getMinute();
+  int currentHour = clock.getHour(h12Flag, pmFlag);
+  
   if (isRingDay() 
       && isRingHour() 
       && currentMinute == 0 
@@ -155,8 +158,8 @@ boolean isRingHour() {
 boolean isChurchTime() {
   // Check if it's church time
   int currentHour = clock.getHour(h12Flag, pmFlag);
-  int currentMinute = clock.getMinute();
   int currentSecond = clock.getSecond();
+  int currentMinute = clock.getMinute();
   if (dow == 1 
       && currentHour == bellSundayRingHour 
       && currentMinute == bellSundayRingMinute 
