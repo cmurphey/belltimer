@@ -2,6 +2,7 @@
 #include <LiquidCrystal.h>
 #include <DS3231.h>
 #include <Wire.h>
+#include <avr/wdt.h>
 
 // Select the pins used on the LCD panel
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
@@ -67,6 +68,9 @@ void setup() {
   // Start the I2C interface
   Wire.begin();
 
+  // Enable watch dog to restart if the program hangs
+  wdt_enable(WDTO_1S);
+
   // Run if RTC gets zeroed out somehow - this needs to be left commented out otherwise
 //  clock.setClockMode(false);  // set to 24h
 //  clock.setYear(21); // 2 digit
@@ -78,6 +82,9 @@ void setup() {
 }
 
 void loop() {
+
+  wdt_reset();
+  
   // Read the lcd buttons
   int lcdKey = readLCDButtons();
 
