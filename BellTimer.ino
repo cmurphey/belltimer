@@ -53,6 +53,7 @@ bool pmFlag;
 // Ring variables
 int lastRingHour = 0;
 int lastSundayDay = 0;
+long ringStopTime = 0;
 
 void setup() {
   // Begin sending data to the serial port
@@ -73,12 +74,12 @@ void setup() {
 
   // Run if RTC gets zeroed out somehow - this needs to be left commented out otherwise
 //  clock.setClockMode(false);  // set to 24h
-//  clock.setYear(21); // 2 digit
+//  clock.setYear(22); // 2 digit
 //  clock.setMonth(8);
-//  clock.setDate(13);
+//  clock.setDate(19);
 //  clock.setDoW(6); // 1 = Sun, 7 = Sat
-//  clock.setHour(22); // 24h
-//  clock.setMinute(15);
+//  clock.setHour(15); // 24h
+//  clock.setMinute(02);
 }
 
 void loop() {
@@ -98,25 +99,30 @@ void loop() {
 
   // Ring based on timer
   checkRingTimer();
+
+  // Check if we should stop ring relay
+  checkStopRing();
 }
 
 void ringBell(int count) {
-  lcd.clear();
-  // Bell needs to be left on for it to ring multiple times
-  for (int i = 1; i <= count; i++) {
+  // Only ring again if it's not already ringing
+  if (ringStopTime == 0) {
+    lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Ring ");
-    lcd.print(i);
-    lcd.print(" of ");
-    lcd.print(count);
-
-    // Relay on
+    lcd.print("Ringing");
     digitalWrite(relayPin, HIGH);
-    delay(bellRelayOnTimeMs);
+    ringStopTime = millis() + count * bellRelayOnTimeMs;
+    delay(500);
+    lcd.clear();
   }
-  // Relay off
-  digitalWrite(relayPin, LOW);
-  lcd.clear();
+}
+
+void checkStopRing() {
+  if (millis() >= ringStopTime) {
+    // Relay off
+    digitalWrite(relayPin, LOW);
+    ringStopTime = 0;
+  }
 }
 
 void checkRingTimer() {
