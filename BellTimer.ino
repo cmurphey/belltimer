@@ -33,7 +33,7 @@ const int numDailyRingDays = 7;
 const int bellDailyRingDays[numDailyRingDays] = {1, 2, 3, 4, 5, 6, 7};
 
 // Adjust to set Sunday ring time and count
-const int bellSundayRingHour = 9;
+const int bellSundayRingHour = 10;
 const int bellSundayRingMinute = 30;
 const int bellSundayRingCount = 3;
 
